@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 
@@ -13,12 +14,12 @@ namespace MediaLab.Areas.AdminPanel.Controllers
     public class DoctorController : Controller
     {
         private AppDbContext _context { get;  }
-        private readonly IWebHostEnvironment webHostEnvironment;
+        private readonly IWebHostEnvironment _env;
         public IEnumerable<Doctor> doctors;
-        public DoctorController(AppDbContext context, IWebHostEnvironment hostEnvironment)
+        public DoctorController(AppDbContext context, IWebHostEnvironment env)
         {
             _context = context;
-            webHostEnvironment = hostEnvironment; 
+            _env = env;
             doctors = _context.Doctors.Where(d => !d.IsDeleted).ToList();
 
         }
@@ -56,6 +57,14 @@ namespace MediaLab.Areas.AdminPanel.Controllers
             {
                 return View();
             }
+            if (doctor.Photo!=null)
+            {
+                string folder = "assets/img/doctors/";
+                folder += Guid.NewGuid().ToString()+doctor.Photo.FileName ;
+                string ServerFolder = Path.Combine(_env.WebRootPath, folder);
+              await doctor.Photo.CopyToAsync(new FileStream(ServerFolder, FileMode.Create));
+
+            }
             var IsExist = _context.Doctors.Where(d => !d.IsDeleted).Any(d => d.Job.ToLower() == doctor.Job.ToLower());
             if (IsExist)
             {
@@ -67,7 +76,8 @@ namespace MediaLab.Areas.AdminPanel.Controllers
                 ModelState.AddModelError("Description", "Your decsription must be at least 10 character");
                 return View();
             }
-          await  _context.AddAsync(doctor);
+           
+            await  _context.AddAsync(doctor);
             await _context.SaveChangesAsync();
             return RedirectToAction(nameof(Index));
 
